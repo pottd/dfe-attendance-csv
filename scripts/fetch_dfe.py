@@ -26,8 +26,8 @@ def main():
     dated_path = os.path.join(OUTPUT_DIR, f"dfe_attendance_{datetime.utcnow():%Y-%m-%d}.csv.gz")
     df.to_csv(dated_path, index=False, compression="gzip")
 
+    print(f"Saved:\n  {latest_path}\n  {dated_path}\nRows: {len(df)}  Columns: {df.shape[1]}")
 
-    print(f"Saved {out_path} and {dated}")
 
 if __name__ == "__main__":
     try:

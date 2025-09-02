@@ -1,17 +1,28 @@
 name: Update test CSV
 
 on:
-  workflow_dispatch: {}   # lets you run it manually from GitHub
+  workflow_dispatch: {}   # manual trigger
 
 jobs:
   update:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # allow pushing back to repo
+      contents: write   # allow pushing back to the repo
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Show initial workspace
+        run: |
+          pwd
+          ls -la
+          git status
+
+      - name: Ensure data directory exists
+        run: |
+          mkdir -p data
+          ls -la
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,15 +41,20 @@ jobs:
           OUTPUT_NAME: dfe_attendance_latest.csv
         run: |
           python scripts/fetch_dfe.py
+          echo "After running fetch:"
+          ls -la
+          ls -la data || true
 
-      - name: Commit & push results
+      - name: Show git status before commit
+        run: |
+          git status
+          git status --porcelain
+
+      - name: Commit & push results (if any)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git add -A
-            git commit -m "Automated update: test CSV"
-            git push
-          else
-            echo "No changes."
-          fi
+          git add -A
+          # Try commit; if nothing to commit, ignore the error
+          git commit -m "Automated update: test CSV" || echo "Nothing to commit"
+          git push || echo "Nothing to push"

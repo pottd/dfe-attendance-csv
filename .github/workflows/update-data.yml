@@ -52,6 +52,14 @@ jobs:
           ls -la
           ls -la data || true
 
+      - name: Prune old dated snapshots (keep 28)
+        run: |
+          keep=28
+          ls -1t data/dfe_attendance_*.csv* 2>/dev/null | tail -n +$((keep+1)) | xargs -r rm -f
+          echo "After prune:"
+          ls -la data || true
+
+
       - name: Show git status before commit
         run: |
           git status

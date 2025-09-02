@@ -18,11 +18,14 @@ def main():
     df = pd.read_csv("temp_download.csv")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    out_path = os.path.join(OUTPUT_DIR, OUTPUT_NAME)
-    df.to_csv(out_path, index=False)
+    # Save main (human-friendly) latest CSV
+    latest_path = os.path.join(OUTPUT_DIR, OUTPUT_NAME)
+    df.to_csv(latest_path, index=False)
 
-    dated = os.path.join(OUTPUT_DIR, f"dfe_attendance_{datetime.utcnow():%Y-%m-%d}.csv")
-    df.to_csv(dated, index=False)
+    # Save a compressed dated snapshot to save space
+    dated_path = os.path.join(OUTPUT_DIR, f"dfe_attendance_{datetime.utcnow():%Y-%m-%d}.csv.gz")
+    df.to_csv(dated_path, index=False, compression="gzip")
+
 
     print(f"Saved {out_path} and {dated}")
 

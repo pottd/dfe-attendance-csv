@@ -1,0 +1,44 @@
+name: Update test CSV
+
+on:
+  workflow_dispatch: {}   # lets you run it manually from GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # allow pushing back to repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run fetch script
+        env:
+          DFE_SOURCE_URL: https://people.sc.fsu.edu/~jburkardt/data/csv/hw_200.csv
+          OUTPUT_DIR: data
+          OUTPUT_NAME: dfe_attendance_latest.csv
+        run: |
+          python scripts/fetch_dfe.py
+
+      - name: Commit & push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "Automated update: test CSV"
+            git push
+          else
+            echo "No changes."
+          fi

@@ -4,7 +4,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 
-SOURCE_URL = os.getenv("DFE_SOURCE_URL", "https://people.sc.fsu.edu/~jburkardt/data/csv/hw_200.csv")
+SOURCE_URL = os.getenv("DFE_SOURCE_URL", "https://github.com/dfe-analytical-services/attendance-data-dashboard/blob/main/data/EES_ytd_data.csv")
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "data")
 OUTPUT_NAME = os.getenv("OUTPUT_NAME", "dfe_attendance_latest.csv")
 

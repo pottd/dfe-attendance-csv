@@ -1,58 +1,68 @@
-import os, sys, json
+import os
+import sys
+import io
 import pandas as pd
+import requests
+from datetime import datetime
 
-SOURCE_URL = os.environ.get("SOURCE_URL")
-REQUIRED_COLUMNS_CSV = os.environ.get("REQUIRED_COLUMNS_CSV", "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc")
-OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "data/dfe_weekly_attendance_latest.csv")
-RENAME_MAP_JSON = os.environ.get("RENAME_MAP_JSON", "")
-CSV_DELIMITER = os.environ.get("CSV_DELIMITER", ",")
-CSV_ENCODING = os.environ.get("CSV_ENCODING", "utf-8")
+# Inputs from workflow env
+SOURCE_URL  = os.getenv("DFE_SOURCE_URL")
+OUTPUT_DIR  = os.getenv("OUTPUT_DIR", "data")
+OUTPUT_NAME = os.getenv("OUTPUT_NAME", "dfe_WEEKLY_attendance.csv")  # default now weekly
 
-def fail(msg):
-    print(f"ERROR: {msg}", file=sys.stderr)
-    sys.exit(1)
+def main():
+    if not SOURCE_URL:
+        raise ValueError("DFE_SOURCE_URL is required")
 
-if not SOURCE_URL:
-    fail("SOURCE_URL was not provided.")
+    # --- Download ---
+    r = requests.get(SOURCE_URL, timeout=60)
+    r.raise_for_status()
 
-required_cols = [c.strip() for c in REQUIRED_COLUMNS_CSV.split(",") if c.strip()]
-if not required_cols:
-    fail("REQUIRED_COLUMNS_CSV is empty — provide a comma-separated list of columns to keep.")
+    # --- Read into pandas ---
+    with open("temp_download.csv", "wb") as f:
+        f.write(r.content)
 
-# Parse rename map if provided
-rename_map = {}
-if RENAME_MAP_JSON.strip():
+    df = pd.read_csv("temp_download.csv")
+
+    # --- Normalise headers (strip stray spaces) ---
+    df.columns = [c.strip() for c in df.columns]
+
+    # --- OPTIONAL STRICT KEEP (disabled if KEEP_COLS not set) ---
+    keep_cols_env = os.getenv("KEEP_COLS", "").strip()
+    if keep_cols_env:
+        requested = [c.strip() for c in keep_cols_env.split(",") if c.strip()]
+        missing = [c for c in requested if c not in df.columns]
+        if missing:
+            raise ValueError(
+                "Strict schema check failed. Missing columns: "
+                f"{missing}. First 30 available columns: {df.columns.tolist()[:30]}"
+            )
+        df = df[requested]
+
+    # --- Save outputs (atomic-ish writes) ---
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    latest_path = os.path.join(OUTPUT_DIR, OUTPUT_NAME)
+
+    # derive dated snapshot base from OUTPUT_NAME (no hard-coded YTD)
+    base_name, _ = os.path.splitext(OUTPUT_NAME)
+    dated_path  = os.path.join(
+        OUTPUT_DIR, f"{base_name}_{datetime.utcnow():%Y-%m-%d}.csv.gz"
+    )
+
+    tmp_latest = os.path.join(OUTPUT_DIR, f".tmp_{OUTPUT_NAME}")
+    df.to_csv(tmp_latest, index=False)
+    os.replace(tmp_latest, latest_path)
+
+    tmp_dated = os.path.join(OUTPUT_DIR, f".tmp_{os.path.basename(dated_path)}")
+    df.to_csv(tmp_dated, index=False, compression="gzip")
+    os.replace(tmp_dated, dated_path)
+
+    print(f"Saved:\n  {latest_path}\n  {dated_path}\nRows: {len(df)}  Columns: {df.shape[1]}")
+
+if __name__ == "__main__":
     try:
-        rename_map = json.loads(RENAME_MAP_JSON)
-        if not isinstance(rename_map, dict):
-            fail("RENAME_MAP_JSON must be a JSON object mapping old->new names.")
+        main()
     except Exception as e:
-        fail(f"Invalid RENAME_MAP_JSON: {e}")
-
-print(f"Downloading CSV from: {SOURCE_URL}")
-try:
-    df = pd.read_csv(SOURCE_URL, encoding=CSV_ENCODING, sep=CSV_DELIMITER)
-except Exception as e:
-    fail(f"Failed to read CSV from URL: {e}")
-
-# Apply known renames (optional)
-if rename_map:
-    df = df.rename(columns=rename_map)
-
-# Strict check: all required columns must exist exactly
-missing = [c for c in required_cols if c not in df.columns]
-if missing:
-    print("Available columns:", list(df.columns))
-    fail(f"Missing required columns (strict mode): {missing}")
-
-# Keep only required columns, preserving the specified order
-df_out = df[required_cols]
-
-# Ensure output directory exists
-out_dir = os.path.dirname(OUTPUT_PATH)
-if out_dir:
-    os.makedirs(out_dir, exist_ok=True)
-
-# Write filtered CSV
-df_out.to_csv(OUTPUT_PATH, index=False, encoding="utf-8")
-print(f"Wrote filtered CSV -> {OUTPUT_PATH}")
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(1)

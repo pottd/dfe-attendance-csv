@@ -1,30 +1,10 @@
-name: Update DfE Weekly CSV
+name: Update WEEKLY CSV
 
 on:
   schedule:
-    # 06:00 UTC Monday–Friday (07:00 BST during summer)
+    # 06:00 UTC Monday–Friday (07:00 during BST, 06:00 in winter)
     - cron: "0 6 * * 1-5"
-  workflow_dispatch:
-    inputs:
-      required_columns_csv:
-        description: "Comma-separated list of columns to keep (must ALL exist)"
-        required: true
-      rename_map_json:
-        description: 'Optional JSON mapping of expected renames, e.g. {"Old Name":"New Name"}'
-        required: false
-      csv_delimiter:
-        description: 'Optional delimiter (default ",")'
-        required: false
-      csv_encoding:
-        description: 'Optional encoding (default "utf-8")'
-        required: false
-      output_path:
-        description: 'Output path for filtered CSV'
-        required: false
-        default: 'data/dfe_weekly_attendance_latest.csv'
-
-permissions:
-  contents: write
+  workflow_dispatch: {}
 
 concurrency:
   group: update-dfe-weekly
@@ -33,46 +13,63 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # allow pushing back to the repo
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Show initial workspace
+        run: |
+          pwd
+          ls -la
+          git status
+
+      - name: Ensure data directory exists
+        run: |
+          mkdir -p data
+          ls -la
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas python-dateutil
+          pip install -r requirements.txt
 
-      - name: Extract columns (strict)
+      - name: Run fetch script
         env:
-          # Fixed weekly CSV source you provided
-          SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_weekly_data.csv
-
-          # Prefer typed input; fallback to repo secret if you want scheduled runs without manual input
-          REQUIRED_COLUMNS_CSV: ${{ github.event.inputs.required_columns_csv || secrets.DFE_REQUIRED_COLUMNS_CSV }}
-
-          # Optional niceties (can be blank)
-          RENAME_MAP_JSON: ${{ github.event.inputs.rename_map_json || '' }}
-          CSV_DELIMITER: ${{ github.event.inputs.csv_delimiter || ',' }}
-          CSV_ENCODING: ${{ github.event.inputs.csv_encoding || 'utf-8' }}
-
-          # Output path (input overrides default)
-          OUTPUT_PATH: ${{ github.event.inputs.output_path || 'data/dfe_weekly_attendance_latest.csv' }}
+          DFE_SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_weekly_data.csv
+          OUTPUT_DIR: data
+          OUTPUT_NAME: dfe_WEEKLY_attendance.csv
+          KEEP_COLS: "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc"
         run: |
-          python scripts/extract_columns_weekly.py
+          python scripts/fetch_dfe.py
+          echo "After running fetch:"
+          ls -la
+          ls -la data || true
 
-      - name: Commit changes (if any)
+
+      - name: Prune old dated snapshots (keep 28)
         run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -A
-            git commit -m "Update filtered DfE weekly CSV: $(date -u +'%Y-%m-%d %H:%M:%S')"
-            git push
-          else
-            echo "No changes to commit."
-          fi
+          keep=28
+          ls -1t data/dfe_WEEKLY_attendance_*.csv* 2>/dev/null | tail -n +$((keep+1)) | xargs -r rm -f
+          echo "After prune:"
+          ls -la data || true
+
+      - name: Show git status before commit
+        run: |
+          git status
+          git status --porcelain
+
+      - name: Commit & push results (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Automated update: WEEKLY CSV" || echo "Nothing to commit"
+          git push || echo "Nothing to push"

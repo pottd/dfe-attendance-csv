@@ -2,7 +2,7 @@ name: Update test CSV
 
 on:
   schedule:
-    # 06:00 UTC Monday–Friday (that’s 07:00 during BST, 06:00 in winter)
+    # 06:00 UTC Monday–Friday (07:00 during BST, 06:00 in winter)
     - cron: "0 6 * * 1-5"
   workflow_dispatch: {}
 
@@ -46,7 +46,7 @@ jobs:
           DFE_SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_ytd_data.csv
           OUTPUT_DIR: data
           OUTPUT_NAME: dfe_attendance_latest.csv
-	  KEEP_COLS: "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc,pa_perc"
+          KEEP_COLS: "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc,pa_perc"
         run: |
           python scripts/fetch_dfe.py
           echo "After running fetch:"
@@ -60,7 +60,6 @@ jobs:
           echo "After prune:"
           ls -la data || true
 
-
       - name: Show git status before commit
         run: |
           git status
@@ -71,6 +70,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          # Try commit; if nothing to commit, ignore the error
           git commit -m "Automated update: test CSV" || echo "Nothing to commit"
           git push || echo "Nothing to push"

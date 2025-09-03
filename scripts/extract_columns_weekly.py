@@ -2,7 +2,7 @@ import os, sys, json
 import pandas as pd
 
 SOURCE_URL = os.environ.get("SOURCE_URL")
-REQUIRED_COLUMNS_CSV = os.environ.get("REQUIRED_COLUMNS_CSV", "")
+REQUIRED_COLUMNS_CSV = os.environ.get("REQUIRED_COLUMNS_CSV", "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc")
 OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "data/dfe_weekly_attendance_latest.csv")
 RENAME_MAP_JSON = os.environ.get("RENAME_MAP_JSON", "")
 CSV_DELIMITER = os.environ.get("CSV_DELIMITER", ",")

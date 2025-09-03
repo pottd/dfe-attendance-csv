@@ -15,7 +15,28 @@ def main():
     with open("temp_download.csv", "wb") as f:
         f.write(r.content)
 
-    df = pd.read_csv("temp_download.csv")
+# Read into pandas
+df = pd.read_csv("temp_download.csv")
+
+# Normalize headers (strip stray spaces)
+df.columns = [c.strip() for c in df.columns]
+
+# Keep only requested columns (if provided)
+keep_cols_env = os.getenv("KEEP_COLS", "")
+keep_cols = [c.strip() for c in keep_cols_env.split(",") if c.strip()]
+
+if keep_cols:
+    missing = [c for c in keep_cols if c not in df.columns]
+    if missing:
+        print(f"[WARN] These KEEP_COLS were not found in source columns: {missing}")
+        print(f"[INFO] Available columns include: {df.columns.tolist()[:20]}{' ...' if df.shape[1]>20 else ''}")
+    # Keep only those that exist, in the requested order
+    keep_existing = [c for c in keep_cols if c in df.columns]
+    if keep_existing:
+        df = df[keep_existing]
+    else:
+        print("[WARN] None of the requested KEEP_COLS matched; leaving all columns unchanged.")
+
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     # Save main (human-friendly) latest CSV

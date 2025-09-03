@@ -45,7 +45,7 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     latest_path = os.path.join(OUTPUT_DIR, OUTPUT_NAME)
-    dated_path  = os.path.join(OUTPUT_DIR, f"dfe_attendance_{datetime.utcnow():%Y-%m-%d}.csv.gz")
+    dated_path  = os.path.join(OUTPUT_DIR, f"dfe_YTD_attendance_{datetime.utcnow():%Y-%m-%d}.csv.gz")
 
     tmp_latest = os.path.join(OUTPUT_DIR, f".tmp_{OUTPUT_NAME}")
     df.to_csv(tmp_latest, index=False)

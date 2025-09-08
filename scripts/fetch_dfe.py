@@ -8,7 +8,7 @@ from datetime import datetime
 # Inputs from workflow env
 SOURCE_URL  = os.getenv("DFE_SOURCE_URL")
 OUTPUT_DIR  = os.getenv("OUTPUT_DIR", "data")
-OUTPUT_NAME = os.getenv("OUTPUT_NAME", "dfe_attendance_latest.csv")
+OUTPUT_NAME = os.getenv("OUTPUT_NAME", "dfe_YTD_attendance.csv")
 
 def main():
     if not SOURCE_URL:

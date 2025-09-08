@@ -14,7 +14,7 @@ jobs:
   update:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # allow pushing back to the repo
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -41,18 +41,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run fetch script
+      - name: Run weekly extract
         env:
           DFE_SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_weekly_data.csv
           OUTPUT_DIR: data
           OUTPUT_NAME: dfe_WEEKLY_attendance.csv
           KEEP_COLS: "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc"
         run: |
-          python scripts/fetch_dfe.py
-          echo "After running fetch:"
+          python scripts/extract_columns_weekly.py
+          echo "After running extract:"
           ls -la
           ls -la data || true
-
 
       - name: Prune old dated snapshots (keep 28)
         run: |

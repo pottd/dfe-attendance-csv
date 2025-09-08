@@ -45,7 +45,7 @@ jobs:
         env:
           DFE_SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_ytd_data.csv
           OUTPUT_DIR: data
-          OUTPUT_NAME: dfe_YTD_attendance_latest.csv
+          OUTPUT_NAME: dfe_YTD_attendance.csv
           KEEP_COLS: "time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc,pa_perc"
         run: |
           python scripts/fetch_dfe.py

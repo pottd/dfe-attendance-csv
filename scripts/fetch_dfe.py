@@ -44,6 +44,10 @@ def main():
     if "pa_perc" not in df.columns:
         df["pa_perc"] = pd.NA
 
+    # --- Rename education_phase → school_type (if present) ---
+    if "education_phase" in df.columns:
+        df = df.rename(columns={"education_phase": "school_type"})
+
     # --- Write outputs ---
     Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     out_path = Path(OUTPUT_DIR) / OUTPUT_NAME

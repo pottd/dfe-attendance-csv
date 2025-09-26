@@ -1,14 +1,16 @@
 import os
-import sys
 import io
-import pandas as pd
+import sys
 import requests
+import pandas as pd
 from datetime import datetime
+from pathlib import Path
 
-# Inputs from workflow env
+# --- Inputs from workflow env ---
 SOURCE_URL  = os.getenv("DFE_SOURCE_URL")
 OUTPUT_DIR  = os.getenv("OUTPUT_DIR", "data")
 OUTPUT_NAME = os.getenv("OUTPUT_NAME", "dfe_YTD_attendance.csv")
+KEEP_COLS   = os.getenv("KEEP_COLS", "")  # comma-separated
 
 def main():
     if not SOURCE_URL:
@@ -19,47 +21,45 @@ def main():
     r.raise_for_status()
 
     # --- Read into pandas ---
-    # (We write to a temp file to avoid partial writes on weird failures)
-    with open("temp_download.csv", "wb") as f:
-        f.write(r.content)
+    df = pd.read_csv(io.StringIO(r.text))
 
-    df = pd.read_csv("temp_download.csv")
+    # --- Parse KEEP_COLS (order not enforced) ---
+    keep_cols = [c.strip() for c in KEEP_COLS.split(",") if c.strip()] if KEEP_COLS else []
 
-    # --- Normalise headers (strip stray spaces) ---
-    df.columns = [c.strip() for c in df.columns]
-
-    # --- STRICT: Keep only requested columns; fail if any missing ---
-    keep_cols_env = os.getenv("KEEP_COLS", "").strip()
-    if keep_cols_env:
-        requested = [c.strip() for c in keep_cols_env.split(",") if c.strip()]
-        missing = [c for c in requested if c not in df.columns]
-        if missing:
+    if keep_cols:
+        # Columns that must exist EXCEPT 'pa_perc' (which we allow to be missing)
+        required = [c for c in keep_cols if c != "pa_perc"]
+        missing_required = [c for c in required if c not in df.columns]
+        if missing_required:
             raise ValueError(
-                "Strict schema check failed. Missing columns: "
-                f"{missing}. First 30 available columns: {df.columns.tolist()[:30]}"
+                "Missing required columns from source: "
+                + ", ".join(missing_required)
             )
-        # Keep exactly and only the requested columns (in order)
-        df = df[requested]
 
-    # --- Save outputs (atomic-ish writes) ---
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+        # Keep only the requested columns that are present now
+        present_subset = [c for c in keep_cols if c in df.columns]
+        df = df[present_subset]
 
-    latest_path = os.path.join(OUTPUT_DIR, OUTPUT_NAME)
-    dated_path  = os.path.join(OUTPUT_DIR, f"dfe_YTD_attendance_{datetime.utcnow():%Y-%m-%d}.csv.gz")
+    # --- Ensure pa_perc exists; add as blank if missing ---
+    if "pa_perc" not in df.columns:
+        df["pa_perc"] = pd.NA
 
-    tmp_latest = os.path.join(OUTPUT_DIR, f".tmp_{OUTPUT_NAME}")
-    df.to_csv(tmp_latest, index=False)
-    os.replace(tmp_latest, latest_path)
+    # --- Write outputs ---
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    out_path = Path(OUTPUT_DIR) / OUTPUT_NAME
+    df.to_csv(out_path, index=False)
 
-    tmp_dated = os.path.join(OUTPUT_DIR, f".tmp_{os.path.basename(dated_path)}")
-    df.to_csv(tmp_dated, index=False, compression="gzip")
-    os.replace(tmp_dated, dated_path)
+    # Also write a dated snapshot for history (YYYYMMDD)
+    stamp = datetime.utcnow().strftime("%Y%m%d")
+    snap_name = OUTPUT_NAME.replace(".csv", f"_{stamp}.csv")
+    df.to_csv(Path(OUTPUT_DIR) / snap_name, index=False)
 
-    print(f"Saved:\n  {latest_path}\n  {dated_path}\nRows: {len(df)}  Columns: {df.shape[1]}")
+    print(f"Wrote {out_path} and snapshot {snap_name}")
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception as e:
-        sys.stderr.write(str(e) + "\n")
+    except Exception as ex:
+        # Fail loudly so the workflow doesn't commit bad data
+        print(f"ERROR: {ex}", file=sys.stderr)
         sys.exit(1)

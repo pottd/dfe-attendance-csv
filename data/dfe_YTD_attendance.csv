@@ -1,4 +1,4 @@
-time_period,geographic_level,country_name,region_name,la_name,education_phase,attendance_perc,authorised_absence_perc,unauthorised_absence_perc,pa_perc
+time_period,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc,pa_perc
 202526,Local authority,England,West Midlands,Telford and Wrekin,Primary,96.290546160244,2.3905897263258,1.31886411343023,
 202526,Local authority,England,Yorkshire and The Humber,Leeds,Primary,95.9547559800354,2.16726838600175,1.87797563396286,
 202526,Local authority,England,South East,Buckinghamshire,Primary,96.7018538653161,2.2240878624809,1.07405827220303,

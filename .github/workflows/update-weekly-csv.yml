@@ -41,16 +41,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run weekly extract
+      - name: Fetch weekly data from the EES API
         env:
-          DFE_SOURCE_URL: https://raw.githubusercontent.com/dfe-analytical-services/attendance-data-dashboard/refs/heads/main/data/EES_weekly_data.csv
           OUTPUT_DIR: data
           OUTPUT_NAME: dfe_WEEKLY_attendance.csv
-          KEEP_COLS: "time_period,time_identifier,geographic_level,country_name,region_name,la_name,school_type,attendance_perc,authorised_absence_perc,unauthorised_absence_perc"
         run: |
-          python scripts/extract_columns_weekly.py
-          echo "After running extract:"
-          ls -la
+          python scripts/fetch_ees.py weekly
           ls -la data || true
 
       - name: Prune old dated snapshots (keep 28)
@@ -70,5 +66,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Automated update: WEEKLY CSV" || echo "Nothing to commit"
-          git push || echo "Nothing to push"
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            git commit -m "Automated update: WEEKLY CSV"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
